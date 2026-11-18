@@ -1,0 +1,43 @@
+{
+  "app_id": null,
+  "account_id": null,
+  "mode": "paper",
+  "symbol": "R_100",
+  "currency": "USD",
+  "contract": { "duration": 5, "duration_unit": "t" },
+  "strategy": {
+    "name": "trend_rider",
+    "params": {
+      "ema_fast": 12,
+      "ema_slow": 36,
+      "min_adx": 22,
+      "rsi_call_max": 72,
+      "rsi_put_min": 28,
+      "min_vol_bps": 0.5,
+      "cooldown_ticks": 10
+    }
+  },
+  "risk": {
+    "stake": 1,
+    "stake_mode": "fixed",
+    "min_stake": 0.35,
+    "max_stake": 25,
+    "equity_fraction": 0.01,
+    "max_equity_fraction_per_trade": 0.05,
+    "martingale_multiplier": 2,
+    "martingale_max_steps": 4,
+    "dalembert_unit": 1,
+    "session_stop_loss": 20,
+    "session_take_profit": 30,
+    "max_trades_per_session": 100,
+    "max_consecutive_losses": 4,
+    "loss_streak_cooldown_ticks": 300,
+    "max_open_positions": 1,
+    "min_payout_ratio": 1.8,
+    "min_equity": 0
+  },
+  "paper": { "starting_balance": 1000 },
+  "backtest": { "ticks": 20000, "payout_ratio": 1.95, "walk_forward": 0.6 },
+  "commission": { "markup_pct": 2 },
+  "logging": { "dir": "data" }
+}

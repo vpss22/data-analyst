@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deriv Options Bot — Control Deck</title>
+<style>
+  :root{--bg:#0b0f17;--panel:#121826;--panel2:#0e1420;--line:#1f2a3d;--tx:#dbe4f3;--dim:#7d8ca3;
+        --up:#22c55e;--down:#ef4444;--acc:#38bdf8;--gold:#f59e0b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:18px}
+  h1{font-size:18px;letter-spacing:.3px} h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);margin-bottom:10px}
+  .wrap{max-width:1280px;margin:0 auto}
+  header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  .badge{font:700 11px var(--mono);padding:4px 10px;border-radius:20px;letter-spacing:1px}
+  .badge.paper{background:#173049;color:var(--acc)} .badge.live{background:#3b1220;color:#fb7185}
+  .badge.run{background:#12291b;color:var(--up)} .badge.halt{background:#3a2a10;color:var(--gold)}
+  select,input,button{background:var(--panel2);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:7px 10px;font:13px var(--mono)}
+  input{width:100%} input:focus,select:focus{outline:1px solid var(--acc)}
+  button{cursor:pointer;font-weight:600} button:hover{border-color:var(--acc)}
+  button.primary{background:#0c4a6e;border-color:#0369a1;color:#e0f2fe}
+  button.warn{background:#451a03;border-color:#92400e;color:#fde68a}
+  .spacer{flex:1}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .card .k{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
+  .card .v{font:700 20px var(--mono);margin-top:4px}
+  .card .s{font-size:11px;color:var(--dim);margin-top:2px}
+  .pos{color:var(--up)} .neg{color:var(--down)} .gold{color:var(--gold)} .acc{color:var(--acc)}
+  .grid{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .chartbox{height:220px;position:relative}
+  svg{width:100%;height:100%}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .field{margin-bottom:9px}
+  .field label{display:block;font-size:11px;color:var(--dim);margin-bottom:3px}
+  .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .log{font:12px var(--mono);color:var(--dim);max-height:120px;overflow-y:auto;background:var(--panel2);border-radius:8px;padding:8px;margin-top:10px}
+  .log div{padding:1px 0} .log .warn{color:var(--gold)} .log .error{color:var(--down)} .log .sig{color:var(--acc)}
+  table{width:100%;border-collapse:collapse;font:12px var(--mono)}
+  th{color:var(--dim);text-align:left;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase}
+  td{padding:6px 8px;border-bottom:1px solid #16202f}
+  .pill{padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px}
+  .pill.CALL{background:#12291b;color:var(--up)} .pill.PUT{background:#3b1220;color:#fb7185}
+  .pill.win{background:#12291b;color:var(--up)} .pill.loss{background:#3b1220;color:#fb7185}
+  .open-pos{display:flex;gap:14px;align-items:center;background:var(--panel2);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;font:13px var(--mono)}
+  .footer{margin-top:16px;font-size:12px;color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .footer b{color:var(--gold)}
+  .flash{animation:flash .8s} @keyframes flash{0%{background:#0c4a6e}100%{background:var(--panel)}}
+  .tickpx{font:700 15px var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚡ Deriv Options Bot</h1>
+    <span id="modeBadge" class="badge paper">PAPER</span>
+    <span id="runBadge" class="badge run">RUNNING</span>
+    <select id="symbolSel" title="Underlying symbol">
+      <option>R_100</option><option>R_75</option><option>R_50</option><option>R_25</option><option>R_10</option>
+      <option>1HZ100V</option><option>1HZ50V</option><option>1HZ10V</option>
+    </select>
+    <span class="tickpx acc" id="lastPx">—</span>
+    <div class="spacer"></div>
+    <button id="pauseBtn" class="warn">⏸ Pause</button>
+    <button id="stopBtn">⏹ Stop</button>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="k">Equity</div><div class="v" id="equity">—</div><div class="s" id="startBal"></div></div>
+    <div class="card"><div class="k">Session P&L</div><div class="v" id="pnl">—</div><div class="s" id="haltReason"></div></div>
+    <div class="card"><div class="k">Win rate</div><div class="v" id="winrate">—</div><div class="s" id="ntrades"></div></div>
+    <div class="card"><div class="k">Max drawdown</div><div class="v" id="dd">—</div><div class="s" id="streak"></div></div>
+    <div class="card"><div class="k">Next stake</div><div class="v" id="stake">—</div><div class="s" id="stakeMode"></div></div>
+    <div class="card"><div class="k">Your markup est.</div><div class="v gold" id="markup">—</div><div class="s" id="markupNote"></div></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2>Live price <span id="symLabel" class="acc"></span> <span style="float:right" id="tickCount"></span></h2>
+        <div class="chartbox"><svg id="priceChart" preserveAspectRatio="none"></svg></div>
+        <div id="openPos"></div>
+        <div class="log" id="log"></div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <h2>Trade journal</h2>
+        <div style="overflow-x:auto">
+        <table><thead><tr><th>Time</th><th>Dir</th><th>Stake</th><th>Entry → Exit</th><th>Result</th><th>P&L</th><th>Session</th><th>Why</th></tr></thead>
+        <tbody id="journal"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="tunePanel">
+      <h2>Strategy &amp; risk tuning</h2>
+      <div class="field"><label>Signal strategy</label><select id="stratSel" style="width:100%"></select></div>
+      <div id="stratParams"></div>
+      <div class="f2">
+        <div class="field"><label>Contract duration (ticks)</label><input id="duration" type="number" min="1" max="10" step="1"></div>
+        <div class="field"><label>Stake mode</label><select id="stakeModeSel"><option value="fixed">fixed</option><option value="fractional">fractional</option><option value="martingale">martingale ⚠</option><option value="dalembert">dalembert</option></select></div>
+      </div>
+      <div class="f2">
+        <div class="field"><label>Base stake ($)</label><input id="stakeIn" type="number" min="0.35" step="0.1"></div>
+        <div class="field"><label>Max stake ($)</label><input id="maxStakeIn" type="number" min="0.35" step="1"></div>
+      </div>
+      <div class="f2">
+        <div class="field"><label>Session stop-loss ($)</label><input id="slIn" type="number" min="1" step="1"></div>
+        <div class="field"><label>Session take-profit ($)</label><input id="tpIn" type="number" min="1" step="1"></div>
+      </div>
+      <div class="f2">
+        <div class="field"><label>Min payout ratio</label><input id="mprIn" type="number" min="1" max="3" step="0.01"></div>
+        <div class="field"><label>Max trades / session</label><input id="maxTradesIn" type="number" min="1" step="1"></div>
+      </div>
+      <div class="f2">
+        <div class="field"><label>Loss-streak limit</label><input id="lossStreakIn" type="number" min="1" max="20" step="1"></div>
+        <div class="field"><label>Cooldown after streak (ticks)</label><input id="cooldownIn" type="number" min="0" step="10"></div>
+      </div>
+      <div class="field"><label>Your app markup % (commission estimate, max 3)</label><input id="markupIn" type="number" min="0" max="3" step="0.1"></div>
+      <button class="primary" id="applyBtn" style="width:100%">Apply settings</button>
+      <div class="s" style="font-size:11px;color:var(--dim);margin-top:8px">Changes apply instantly. Strategy changes reset indicator warm-up. Martingale does not create edge — it concentrates ruin risk.</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <b>How this bot earns for you (the developer):</b> every contract a user places through your registered <code>app_id</code> pays you
+    <b>up to 3% of the potential payout</b> as app markup — win or lose. Enroll in the Deriv Partner programme and have users sign up via your
+    partner link to also earn <b>40% of Deriv's revenue</b> from their options activity (+4–8% tier boosts, +7.5% sub-partner overrides).
+    Track real earnings: <code>node main.mjs commission</code>. &nbsp;|&nbsp; Trading involves risk; no strategy guarantees profit. Demo first.
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(x,d=2)=>x==null?'—':Number(x).toFixed(d);
+const money=x=>(x>=0?'+$':'-$')+fmt(Math.abs(x));
+let STRATS={}, prices=[], equityPts=[], state=null, paused=false;
+
+function log(msg,cls=''){const el=$('log');const d=document.createElement('div');if(cls)d.className=cls;d.textContent=`${new Date().toLocaleTimeString()}  ${msg}`;el.prepend(d);while(el.children.length>60)el.lastChild.remove();}
+
+function drawChart(){
+  const svg=$('priceChart');const W=svg.clientWidth||800,H=svg.clientHeight||220;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  if(prices.length<2){svg.innerHTML='';return;}
+  const ps=prices.slice(-240);const min=Math.min(...ps),max=Math.max(...ps);const pad=(max-min)||1;
+  const X=i=>i/(ps.length-1)*W, Y=v=>H-8-((v-min)/pad)*(H-16);
+  let d=ps.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  const up=ps[ps.length-1]>=ps[0];
+  svg.innerHTML=`<path d="${d}L${W},${H}L0,${H}Z" fill="${up?'#22c55e14':'#ef444414'}"/>
+    <path d="${d}" fill="none" stroke="${up?'#22c55e':'#ef4444'}" stroke-width="1.6"/>
+    <text x="${W-6}" y="14" text-anchor="end" fill="#7d8ca3" font-size="11" font-family="monospace">${fmt(max,2)}</text>
+    <text x="${W-6}" y="${H-4}" text-anchor="end" fill="#7d8ca3" font-size="11" font-family="monospace">${fmt(min,2)}</text>`;
+}
+
+function renderState(s){
+  state=s;paused=s.paused;
+  $('modeBadge').textContent=s.mode.toUpperCase();$('modeBadge').className='badge '+s.mode;
+  $('runBadge').textContent=!s.running?'STOPPED':s.paused?'PAUSED':s.risk.halted?'RISK HALT':'RUNNING';
+  $('runBadge').className='badge '+(!s.running||s.risk.halted?'halt':'run');
+  $('pauseBtn').textContent=s.paused?'▶ Resume':'⏸ Pause';
+  $('equity').textContent='$'+fmt(s.risk.equity);
+  $('startBal').textContent='start $'+fmt(s.config.paper.starting_balance);
+  $('pnl').textContent=money(s.risk.sessionPnl);$('pnl').className='v '+(s.risk.sessionPnl>=0?'pos':'neg');
+  $('haltReason').textContent=s.risk.haltReason||'';
+  $('winrate').textContent=s.risk.winRate==null?'—':(100*s.risk.winRate).toFixed(1)+'%';
+  $('ntrades').textContent=`${s.risk.wins}W / ${s.risk.trades-s.risk.wins}L of ${s.risk.trades}`;
+  $('dd').textContent='$'+fmt(s.risk.maxDrawdown);
+  $('streak').textContent='worst streak: '+s.risk.worstLossStreak;
+  $('stake').textContent='$'+fmt(s.risk.nextStake);
+  $('stakeMode').textContent=s.config.risk.stake_mode;
+  $('markup').textContent='$'+fmt(s.markupEarnedEst);
+  $('markupNote').textContent=s.config.commission.markup_pct+'% of payouts (est.)';
+  $('symLabel').textContent=s.symbol;$('symbolSel').value=s.symbol;
+  $('tickCount').textContent=s.tickCount+' ticks';
+  if(s.lastTick)$('lastPx').textContent=fmt(s.lastTick.quote,2);
+  equityPts=s.equityHistory.map(p=>p.equity);
+  $('openPos').innerHTML=s.open.map(p=>`<div class="open-pos"><span class="pill ${p.contract_type}">${p.contract_type}</span>
+    <span>$${fmt(p.stake)} → $${fmt(p.payout)}</span><span>entry ${p.entry==null?'pending…':fmt(p.entry,2)}</span>
+    ${p.ticksLeft!=null?`<span class="acc">${p.ticksLeft} ticks left</span>`:''}<span style="color:var(--dim)">${p.reason||''}</span></div>`).join('')||'';
+  $('journal').innerHTML=s.journal.slice(0,25).map(t=>`<tr>
+    <td>${t.ts.slice(11,19)}</td><td><span class="pill ${t.contract_type}">${t.contract_type}</span></td>
+    <td>$${fmt(t.stake)}</td><td>${fmt(t.entry,2)} → ${fmt(t.exit,2)}</td>
+    <td><span class="pill ${t.result}">${t.result.toUpperCase()}</span></td>
+    <td class="${t.profit>=0?'pos':'neg'}">${money(t.profit)}</td><td>${money(t.session_pnl)}</td>
+    <td style="color:var(--dim);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(t.reason||'').replace(/"/g,'')}">${t.reason||''}</td></tr>`).join('');
+  fillControls(s.config);
+}
+
+function fillControls(cfg){
+  if(document.activeElement&&$('tunePanel').contains(document.activeElement))return; // don't clobber typing
+  $('stratSel').value=cfg.strategy.name;
+  buildParams(cfg.strategy.name,cfg.strategy.params);
+  $('duration').value=cfg.contract.duration;
+  $('stakeModeSel').value=cfg.risk.stake_mode;
+  $('stakeIn').value=cfg.risk.stake;$('maxStakeIn').value=cfg.risk.max_stake;
+  $('slIn').value=cfg.risk.session_stop_loss;$('tpIn').value=cfg.risk.session_take_profit;
+  $('mprIn').value=cfg.risk.min_payout_ratio;$('maxTradesIn').value=cfg.risk.max_trades_per_session;
+  $('lossStreakIn').value=cfg.risk.max_consecutive_losses;$('cooldownIn').value=cfg.risk.loss_streak_cooldown_ticks;
+  $('markupIn').value=cfg.commission.markup_pct;
+}
+function buildParams(name,vals){
+  const spec=STRATS[name]?.paramSpec||{};const box=$('stratParams');box.innerHTML='';
+  const keys=Object.keys(spec);
+  for(let i=0;i<keys.length;i+=2){
+    const row=document.createElement('div');row.className='f2';
+    for(const k of keys.slice(i,i+2)){
+      const s=spec[k];const f=document.createElement('div');f.className='field';
+      f.innerHTML=`<label>${s.label}</label><input data-param="${k}" type="number" min="${s.min}" max="${s.max}" step="${s.step}" value="${vals[k]??STRATS[name].defaults[k]}">`;
+      row.appendChild(f);
+    }
+    box.appendChild(row);
+  }
+}
+async function apply(){
+  const params={};document.querySelectorAll('[data-param]').forEach(i=>params[i.dataset.param]=+i.value);
+  const body={
+    strategy:{name:$('stratSel').value,params},
+    contract:{duration:+$('duration').value,duration_unit:'t'},
+    risk:{stake:+$('stakeIn').value,stake_mode:$('stakeModeSel').value,max_stake:+$('maxStakeIn').value,
+      session_stop_loss:+$('slIn').value,session_take_profit:+$('tpIn').value,min_payout_ratio:+$('mprIn').value,
+      max_trades_per_session:+$('maxTradesIn').value,max_consecutive_losses:+$('lossStreakIn').value,
+      loss_streak_cooldown_ticks:+$('cooldownIn').value},
+    commission:{markup_pct:Math.min(3,Math.max(0,+$('markupIn').value))},
+  };
+  const sym=$('symbolSel').value; if(state&&sym!==state.symbol)body.symbol=sym;
+  const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){log('settings applied','sig');$('tunePanel').classList.add('flash');setTimeout(()=>$('tunePanel').classList.remove('flash'),800);refresh();}
+}
+async function control(action){await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});refresh();}
+async function refresh(){const r=await fetch('/api/state');renderState(await r.json());drawChart();}
+
+$('applyBtn').onclick=apply;
+$('pauseBtn').onclick=()=>control(paused?'resume':'pause');
+$('stopBtn').onclick=()=>control(state&&state.running?'stop':'start');
+$('stratSel').onchange=()=>buildParams($('stratSel').value,STRATS[$('stratSel').value].defaults);
+
+(async()=>{
+  STRATS=await(await fetch('/api/strategies')).json();
+  $('stratSel').innerHTML=Object.entries(STRATS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+  await refresh();
+  const es=new EventSource('/api/events');
+  es.addEventListener('tick',e=>{const t=JSON.parse(e.data);prices.push(t.quote);if(prices.length>400)prices.shift();$('lastPx').textContent=fmt(t.quote,2);$('tickCount').textContent=t.i+' ticks';drawChart();});
+  es.addEventListener('signal',e=>{const s=JSON.parse(e.data);log(`SIGNAL ${s.signal}: ${s.reason}`,'sig');});
+  es.addEventListener('trade_open',e=>{const p=JSON.parse(e.data);log(`OPEN ${p.contract_type} $${fmt(p.stake)} → $${fmt(p.payout)}`);refresh();});
+  es.addEventListener('trade_close',e=>{const t=JSON.parse(e.data);log(`CLOSE ${t.result.toUpperCase()} ${money(t.profit)} (session ${money(t.session_pnl)})`,t.profit>=0?'':'warn');refresh();});
+  es.addEventListener('status',e=>{const s=JSON.parse(e.data);log(s.message,s.level);});
+  es.addEventListener('config',()=>refresh());
+  window.addEventListener('resize',drawChart);
+})();
+</script>
+</body>
+</html>
